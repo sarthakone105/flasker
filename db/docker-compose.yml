@@ -21,7 +21,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgres://myuser:mypassword@db:5432/myappdb
+      DATABASE_URL: postgresql://myuser:mypassword@db:5432/myappdb
+    volumes:
+      - ../backend:/app  # Mount local code for live updates
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
 volumes:
   db_data:
