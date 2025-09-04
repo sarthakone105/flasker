@@ -100,3 +100,29 @@ class MessageResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+    
+    
+    
+class EscrowStatus(str, Enum):
+    pending = "pending"
+    paid = "paid"
+    released = "released"
+    refunded = "refunded"
+
+
+class EscrowCreate(BaseModel):
+    request_id: int
+    amount_inr: float
+
+
+class EscrowResponse(BaseModel):
+    id: int
+    request_id: int
+    amount_inr: float
+    provider_payment_id: str
+    status: EscrowStatus
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }

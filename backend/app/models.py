@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Enum, DateTime, Text, func
+from sqlalchemy import Column, Integer, String, ForeignKey, Enum, DateTime, Text, func, Float
 from sqlalchemy.orm import relationship
 from app.db import Base
 import enum
@@ -54,6 +54,8 @@ class Request(Base):
     trip = relationship("Trip", back_populates="requests")
     requester = relationship("User", back_populates="requests")
     messages = relationship("Message", back_populates="request", cascade="all, delete")
+    escrow = relationship("Escrow", back_populates="request", uselist=False)
+
 
 
 class Message(Base):
@@ -70,3 +72,25 @@ class Message(Base):
     sender = relationship("User", foreign_keys=[sender_id], back_populates="sent_messages")
     receiver = relationship("User", foreign_keys=[receiver_id], back_populates="received_messages")
     request = relationship("Request", back_populates="messages")
+
+
+
+class EscrowStatus(str, enum.Enum):
+    pending = "pending"
+    paid = "paid"
+    released = "released"
+    refunded = "refunded"
+
+
+class Escrow(Base):
+    __tablename__ = "escrows"
+
+    id = Column(Integer, primary_key=True, index=True)
+    request_id = Column(Integer, ForeignKey("requests.id", ondelete="CASCADE"), nullable=False)
+    amount_inr = Column(Float, nullable=False)
+    provider_payment_id = Column(String, nullable=False)  # e.g., Razorpay/Stripe payment_id
+    status = Column(Enum(EscrowStatus), default=EscrowStatus.pending)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationship
+    request = relationship("Request", back_populates="escrow")

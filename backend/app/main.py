@@ -2,6 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app import models, schemas, db, security, auth
 from typing import List
+from app import payments
+
+
 
 # Create DB tables
 models.Base.metadata.create_all(bind=db.engine)
@@ -224,3 +227,6 @@ def get_messages(
         .order_by(models.Message.timestamp)
         .all()
     )
+
+
+app.include_router(payments.router)
