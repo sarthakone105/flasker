@@ -138,3 +138,89 @@ def reject_request(request_id: int, session: Session = Depends(get_db)):
     session.commit()
     session.refresh(req)
     return req
+
+
+
+# -----------------------------
+# Messages
+# -----------------------------
+
+def ensure_request_access(user_id: int, request_obj: models.Request):
+    """Ensure the given user is either the requester or the traveler of this request."""
+    if user_id not in [request_obj.requester_id, request_obj.trip.user_id]:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to access this request's messages"
+        )
+
+
+@app.post("/messages", response_model=schemas.MessageResponse)
+def send_message(
+    message: schemas.MessageCreate,
+    session: Session = Depends(get_db),
+    username: str = Depends(auth.get_current_user),
+):
+    sender = session.query(models.User).filter(models.User.username == username).first()
+    if not sender:
+        raise HTTPException(status_code=404, detail="Sender not found")
+
+    request_obj = session.query(models.Request).filter(models.Request.id == message.request_id).first()
+    if not request_obj:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    # ✅ Use helper instead of inline logic
+    ensure_request_access(sender.id, request_obj)
+
+    # Auto-determine receiver
+    if sender.id == request_obj.requester_id:
+        receiver_id = request_obj.trip.user_id
+    else:
+        receiver_id = request_obj.requester_id
+
+    new_message = models.Message(
+        request_id=message.request_id,
+        sender_id=sender.id,
+        receiver_id=receiver_id,
+        content=message.content,
+    )
+    session.add(new_message)
+    session.commit()
+    session.refresh(new_message)
+    return new_message
+
+
+
+
+# put this helper somewhere common (e.g. in main.py or a utils.py)
+def ensure_request_access(user_id: int, request_obj: models.Request):
+    """Ensure that only requester or trip owner can access the request"""
+    if user_id not in [request_obj.requester_id, request_obj.trip.user_id]:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to access messages for this request"
+        )
+
+
+@app.get("/messages/{request_id}", response_model=List[schemas.MessageResponse])
+def get_messages(
+    request_id: int,
+    session: Session = Depends(get_db),
+    username: str = Depends(auth.get_current_user),
+):
+    user = session.query(models.User).filter(models.User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    request_obj = session.query(models.Request).filter(models.Request.id == request_id).first()
+    if not request_obj:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    # ✅ Use the same helper as send_message
+    ensure_request_access(user.id, request_obj)
+
+    return (
+        session.query(models.Message)
+        .filter(models.Message.request_id == request_id)
+        .order_by(models.Message.timestamp)
+        .all()
+    )

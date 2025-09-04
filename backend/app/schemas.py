@@ -81,3 +81,22 @@ class RequestResponse(RequestBase):
     model_config = {
         "from_attributes": True
     }
+
+
+
+class MessageCreate(BaseModel):
+    request_id: int
+    content: str
+
+
+class MessageResponse(BaseModel):
+    id: int
+    request_id: int
+    sender_id: int
+    receiver_id: int
+    content: str
+    timestamp: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
